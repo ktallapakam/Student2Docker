@@ -1,0 +1,52 @@
+pipeline {
+    agent any
+    environment {
+        ECR_REPO = '726292817982.dkr.ecr.us-east-1.amazonaws.com/tallapakam'
+        AWS_REGION = 'us-east-1'
+        IMAGE_NAME = 'studnets'
+        PATH = "/opt/sonar-scanner/bin:$PATH"
+    }
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World....!'
+            }
+        }
+        stage('Checkout') {
+            steps {
+                echo 'Hello World....Checkout'
+                git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
+            }
+        }
+        stage('gitBuild') {
+            steps {
+                echo 'Hello World....gitBuild'
+                sh 'mvn clean install'
+            }
+        }
+        stage('dockerBuild') {
+            steps {
+                echo 'Hello World....dockerBuild'
+                sh 'docker build -t ${IMAGE_NAME} .'
+            }
+        }
+        stage('dockerScan') {
+           steps {
+                echo 'Hello World....dockerScan'
+        //      sh 'trivy image ${IMAGE_NAME}:latest > report.txt'
+        //   }
+        } 
+        stage('Push2ECR') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+                    sh '''
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+                        docker tag $IMAGE_NAME:latest $ECR_REPO:$BUILD_NUMBER
+                        docker push $ECR_REPO:$BUILD_NUMBER
+                    '''
+                    }
+                }
+            }
+    }
+}
