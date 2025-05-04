@@ -1,15 +1,14 @@
-# Stage 1: Build with Maven and Java 24
+# Build Stage
 FROM maven:3.9.9-eclipse-temurin-24-alpine AS builder
-
 WORKDIR /app
 COPY . .
 RUN mvn clean package -DskipTests
 
-# Stage 2: Runtime with distroless (Java 24)
-FROM gcr.io/distroless/java24-debian11
-
-COPY --from=builder /app/target/students.jar /students.jar
-ENTRYPOINT ["java", "-jar", "/students.jar"]
+# Runtime Stage with Temurin 24
+FROM eclipse-temurin:24-jdk-alpine
+WORKDIR /app
+COPY target/students.jar students.jar
+ENTRYPOINT ["java", "-jar", "students.jar"]
 
 
 #=======================================
