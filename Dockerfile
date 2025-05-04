@@ -1,27 +1,15 @@
-# Stage 1: Build Stage (Optional if you already have the JAR)
-# If you're just packaging an existing students.jar, you can skip this stage
-FROM 3.9.9-eclipse-temurin-21-alpine AS builder
+# Stage 1: Build with Maven and Java 24
+FROM maven:3.9.9-eclipse-temurin-24-alpine AS builder
 
 WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
 
-# Copy source code and build (optional)
-# COPY . .
-# RUN mvn clean package -DskipTests
+# Stage 2: Runtime with distroless (Java 24)
+FROM gcr.io/distroless/java24-debian11
 
-# OR just copy your existing JAR if already built
-# We'll assume students.jar is already built and located in your local context
-COPY students.jar .
-
-# Stage 2: Runtime Stage
-FROM 21-jre-alpine
-WORKDIR /app
-# Copy the JAR from the builder stage
-COPY --from=builder /app/students.jar .
-# Expose the port (adjust if your app runs on a different port)
-EXPOSE 8181
-# Run the JAR
-ENTRYPOINT ["java", "-jar", "students.jar"]
-
+COPY --from=builder /app/target/students.jar /students.jar
+ENTRYPOINT ["java", "-jar", "/students.jar"]
 
 
 #=======================================
