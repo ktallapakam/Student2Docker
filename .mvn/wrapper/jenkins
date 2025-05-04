@@ -19,6 +19,14 @@ pipeline {
                 git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
             }
         }
+        stage('SonarQubeAnalysis') {
+            steps {
+                echo 'Hello World....SonarQubeAnalysis'
+                //withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                //   sh 'sonar-scanner'
+                //}
+            }
+        }
         stage('gitBuild') {
             steps {
                 echo 'Hello World....gitBuild'
