@@ -1,60 +1,49 @@
 pipeline {
     agent any
     environment {
-        ECR_REPO = '726292817982.dkr.ecr.us-east-1.amazonaws.com/tallapakam'
-        AWS_REGION = 'us-east-1'
-        IMAGE_NAME = 'studnets'
-        PATH = "/opt/sonar-scanner/bin:$PATH"
+        IMAGE_NAME = 'devopskishore79/students'
     }
 
     stages {
         stage('Hello') {
             steps {
-                echo 'Hello World....!'
+                echo 'Hello World.....!'
             }
         }
-        stage('Checkout') {
+        stage('gitCheckout') {
             steps {
-                echo 'Hello World....Checkout'
-                git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
-            }
-        }
-        stage('SonarQubeAnalysis') {
-            steps {
-                echo 'Hello World....SonarQubeAnalysis'
-                //withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                //   sh 'sonar-scanner'
-                //}
+                echo 'Hello World.....gitCheckout'
+                git branch: 'main', url: 'https://github.com/ktallapakam/Student2Docker.git'
             }
         }
         stage('gitBuild') {
             steps {
-                echo 'Hello World....gitBuild'
+                echo 'Hello World.....gitBuild'
                 sh 'mvn clean install'
             }
         }
         stage('dockerBuild') {
             steps {
-                echo 'Hello World....dockerBuild'
+                echo 'Hello World.....dockerBuild'
                 sh 'docker build -t ${IMAGE_NAME} .'
             }
         }
-        stage('dockerScan') {
-           steps {
-                echo 'Hello World....dockerScan'
-        //      sh 'trivy image ${IMAGE_NAME}:latest > report.txt'
-        //   }
-        } 
-        stage('Push2ECR') {
+        stage('ImageScan') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-                    sh '''
-                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
-                        docker tag $IMAGE_NAME:latest $ECR_REPO:$BUILD_NUMBER
-                        docker push $ECR_REPO:$BUILD_NUMBER
-                    '''
-                    }
-                }
+                echo 'Hello World.....DockerScan'
+                // sh ''' trivy image --exit-code 1 --severity CRITICAL,HIGH --no-progress $IMAGE_NAME '''
+                 sh 'trivy image ${IMAGE_NAME}:latest > report.txt'
             }
+        }
+        stage('dockerPush') {
+            steps {
+                echo 'Hello World.....dockerPush'
+                withCredentials([string(credentialsId: 'dockerCred', variable: 'dockerCred')]) {
+                    sh 'docker login -u devopskishore79 -p ${dockerCred}'
+                }
+                sh "docker push ${IMAGE_NAME}"
+                echo 'Hello World....dockerpush...completed..!'
+            }
+        }
     }
 }
