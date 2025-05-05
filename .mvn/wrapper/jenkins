@@ -45,5 +45,6 @@ pipeline {
                 echo 'Hello World....dockerpush...completed..!'
             }
         }
+        echo "trivy scan added.."
     }
 }
