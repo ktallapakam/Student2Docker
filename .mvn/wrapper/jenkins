@@ -45,6 +45,5 @@ pipeline {
                 echo 'Hello World....dockerpush...completed..!'
             }
         }
-        echo "webhook provided123"
     }
 }
