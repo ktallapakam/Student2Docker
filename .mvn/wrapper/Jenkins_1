@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+    environment {
+        PATH = "/opt/sonar-scanner/bin:${env.PATH}"
+        SONARQUBE_ENV_NAME = 'sonarQubeServer'
+        SONAR_HOST_URL = 'http://13.51.238.137/:9000'
+        SONAR_AUTH_TOKEN = 'sqa_d4fc7fc37ab1faad8d2b4dee97fe1615137642a0'
+        
+        DOCKER_IMAGE = 'devopskishore79/students'
+    }
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World............!'
+            }
+        }
+        stage('GithubCheckout') {
+            steps {
+                echo 'Hello World.............GithubCheckout'
+                git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
+            }
+        }
+        stage('SonarQubeAnalysis') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
+                    sh '''
+                    docker run --rm -v $PWD:/usr/src sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=k8-fastapi-project \
+                        -Dsonar.sources=src \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.exclusions=**/*.java \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                    '''
+                }
+            }
+        }
+        stage('GitBuild') {
+            steps {
+                echo 'Hello World.............GitBuild'
+                sh 'mvn clean install'
+            }
+        }
+        stage('dockerBuild') {
+            steps {
+                echo 'Hello World.............dockerBuild'
+                sh 'docker build -t ${DOCKER_IMAGE} .'
+            }
+        }
+        stage('dockerImgScan') {
+            steps {
+                echo 'Hello World.............dockerImgScan'
+                sh 'trivy image ${DOCKER_IMAGE}:latest > report.txt'
+            }
+        }
+        stage('dockerImgPush') {
+            steps {
+                echo 'Hello World.............dockerImgPush'
+                withCredentials([string(credentialsId: 'dockerhubCred', variable: 'dockerCred')]) {
+                    sh 'docker login -u devopskishore79 -p ${dockerCred}'
+                }
+                sh 'docker push ${DOCKER_IMAGE}'
+            }
+        }
+        stage('dockerImgDeploy') {
+            steps {
+                echo 'Hello World.............dockerImgDeploy'
+                withCredentials([aws(accessKeyVariable: 'ACCESS_KEY_ID', credentialsId: 'awsCred', secretKeyVariable: 'SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        echo "Access Key: $ACCESS_KEY_ID"
+                        echo "Secret Key: $SECRET_ACCESS_KEY"
+                    '''
+                }
+            }
+        }
+    }
+}
