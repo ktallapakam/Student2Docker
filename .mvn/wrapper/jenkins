@@ -72,9 +72,7 @@ pipeline {
 //its not working... need to look into it..,
                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'awsCred', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                      sh '''
-                            echo $WORKSPACE
                             export KUBECONFIG=$WORKSPACE/kubeconfig
-                            echo $KUBECONFIG
                             aws eks --region us-east-1 update-kubeconfig --name eks-cluster --kubeconfig $KUBECONFIG
                             kubectl --kubeconfig=$KUBECONFIG apply -f k8s/deployment.yaml
                             kubectl --kubeconfig=$KUBECONFIG apply -f k8s/servicves.yaml
