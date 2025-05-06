@@ -1,54 +1,76 @@
 pipeline {
     agent any
     environment {
-        IMAGE_NAME = 'devopskishore79/students'
+        DOCKER_IMAGE = 'devopskishore79/students'
+        SONARQUBE_ENV_NAME = 'sonarQubeServer'
+        SONAR_HOST_URL = 'http://34.228.32.29:9000'
+        SONAR_AUTH_TOKEN = 'sqa_a38b61df573a81eb36828cac17c34bfed30f4eb8'
+        
+        
+        AWS_REGION = 'us-east-1'
+        EKS_CLUSTER_NAME = 'eks-cluster'
+        KUBE_DEPLOYMENT = 'my-deployment'
+        CONTAINER_NAME = 'my-container'
     }
-
     stages {
         stage('Hello') {
             steps {
-                echo 'Hello World.....!'
+                echo 'Hello World.......!'
             }
         }
-        stage('checkout') {
+        stage('gitCheckout') {
             steps {
-                echo 'Hello World.....checkout'
+                echo 'Hello World.......gitCheckout'
                 git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
+            }
+        }
+        stage('SonarQubeAnalysis') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
+                    sh '''
+                    docker run --rm -v $PWD:/usr/src sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=k8-fastapi-project \
+                        -Dsonar.sources=src \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.exclusions=**/*.java \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                    '''
+                }
             }
         }
         stage('gitBuild') {
             steps {
-                echo 'Hello World.....checkout'
+                echo 'Hello World.......gitBuild'
                 sh 'mvn clean install'
             }
         }
-        stage('dockerBuild') {
+        stage('dockerImage') {
             steps {
-                echo 'Hello World.....dockerBuild'
-                sh 'docker build -t ${IMAGE_NAME} .'
+                echo 'Hello World.......dockerImage'
+                sh 'docker build -t ${DOCKER_IMAGE} .'
             }
         }
-        stage('dockerImageScan') {
+        stage('ImageScan') {
             steps {
-                echo 'Hello World.....dockerImageScan'
-                sh 'trivy image ${IMAGE_NAME}:latest > report.txt'
+                 echo 'Hello World.......ImageScan'
+                sh 'trivy image ${DOCKER_IMAGE}:latest > report.txt'
             }
         }
-        stage('dockerPush') {
+        stage('dockerImagePush') {
             steps {
-                echo 'Hello World.....dockerPush'
-                withCredentials([string(credentialsId: 'dockerCred', variable: 'dockerHubCred')]) {
-                    sh 'docker login -u devopskishore79 -p ${dockerHubCred}'
+                echo 'Hello World.......dockerImagePush'
+                withCredentials([string(credentialsId: 'dockerCred', variable: 'dockerCred')]) {
+                    sh 'docker login -u devopskishore79 -p ${dockerCred}'
                 }
-                sh 'docker push ${IMAGE_NAME}'
-                echo "${IMAGE_NAME} pushed to dockerHub"
+                sh 'docker push ${DOCKER_IMAGE}'
             }
         }
-        stage('Deploy') {
+        stage('deployService') {
             steps {
-                //not working, need to look into it..,
-                //error: You must be logged in to the server (the server has asked for the client to provide credentials)
-                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'awsCred', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                echo 'Hello World.......deployService'
+//its not working... need to look into it..,
+               withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'awsCred', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                      sh '''
                             echo $WORKSPACE
                             export KUBECONFIG=$WORKSPACE/kubeconfig
