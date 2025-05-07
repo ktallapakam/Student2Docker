@@ -1,0 +1,74 @@
+pipeline {
+    agent any
+    environment {
+         PATH = "/opt/sonar-scanner/bin:${env.PATH}"
+        SONARQUBE_ENV_NAME = 'sonarQubeServer'
+        SONAR_HOST_URL = 'http://54.237.249.155:9000'
+        SONAR_AUTH_TOKEN = 'sqa_d2a91e43e422daccfd466aef28d4130d6b932e5b'
+        DOCKER_IMAGE = 'devopskishore79/students'
+    }
+    stages {
+        stage('gitCheckout') {
+            steps {
+                echo 'Hello World.......gitCheckout'
+                git branch: 'main', credentialsId: 'githubCred', url: 'https://github.com/ktallapakam/Student2Docker.git'
+            }
+        }
+        stage('sonarScanner') {
+            steps {
+                echo 'Hello World.......sonarScanner'
+                withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
+                    sh '''
+                        docker run --rm -v $PWD:/usr/src sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=k8-fastapi-project \
+                        -Dsonar.sources=src \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.exclusions=**/*.java \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                    '''
+                }
+            }
+        }
+        stage('gitBuild') {
+            steps {
+                echo 'Hello World.......gitBuild'
+                sh 'mvn clean install'
+            }
+        }
+        stage('dockerBuild') {
+            steps {
+                echo 'Hello World.......dockerBuild'
+                sh 'docker build -t ${DOCKER_IMAGE} .'
+            }
+        }
+        stage('dockerImgScan') {
+            steps {
+                echo 'Hello World.......dockerImgScan'
+                sh 'trivy image ${DOCKER_IMAGE}:latest > report.txt'
+            }
+        }
+        stage('dockerPush') {
+            steps {
+                echo 'Hello World.......dockerPush'
+                withCredentials([string(credentialsId: 'dockerHubCred', variable: 'dockerCred')]) {
+                    sh 'docker login -u devopskishore79 -p ${dockerCred}'
+                }
+                sh 'docker push ${DOCKER_IMAGE}'
+            }
+        }
+         stage('k8sDeploy') {
+            steps {
+                echo 'Hello World.......k8sDeploy'
+                withCredentials([aws(accessKeyVariable: 'ACCESS_KEY_ID', credentialsId: 'awsCred', secretKeyVariable: 'SECRET_ACCESS_KEY')]) {
+                        sh '''
+                            export KUBECONFIG=$WORKSPACE/kubeconfig
+                            aws eks --region us-east-1 update-kubeconfig --name eks-cluster1 --kubeconfig $KUBECONFIG
+                            kubectl --kubeconfig=$KUBECONFIG apply -f k8s/deployment.yaml
+                            kubectl --kubeconfig=$KUBECONFIG apply -f k8s/service.yaml
+                        '''
+                }
+            }
+        }
+    }
+}
